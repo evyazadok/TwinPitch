@@ -1,0 +1,32 @@
+name: Build macOS plugin
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: "Build (universal: Apple Silicon + Intel)"
+        run: cmake --build build --config Release -j4
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp -R build/TwinPitch_artefacts/Release/AU/TwinPitch.component dist/
+          cp -R build/TwinPitch_artefacts/Release/VST3/TwinPitch.vst3 dist/
+          cp -R build/TwinPitch_artefacts/Release/Standalone/TwinPitch.app dist/
+          # ad-hoc signature so macOS will load it locally
+          codesign --force --deep -s - dist/TwinPitch.component dist/TwinPitch.vst3 dist/TwinPitch.app
+          cd dist && zip -r -y ../TwinPitch-mac.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TwinPitch-mac
+          path: TwinPitch-mac.zip
