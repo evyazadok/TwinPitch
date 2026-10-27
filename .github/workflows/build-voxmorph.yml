@@ -1,0 +1,42 @@
+name: Build VoxMorph (macOS)
+
+on:
+  push:
+    paths:
+      - "VoxMorph/**"
+      - ".github/workflows/build-voxmorph.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: VoxMorph
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: "Build (universal: Apple Silicon + Intel)"
+        run: cmake --build build --config Release -j4
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp -R build/VoxMorph_artefacts/Release/AU/VoxMorph.component dist/
+          cp -R build/VoxMorph_artefacts/Release/VST3/VoxMorph.vst3 dist/
+          cp -R build/VoxMorph_artefacts/Release/Standalone/VoxMorph.app dist/
+          codesign --force --deep -s - dist/VoxMorph.component dist/VoxMorph.vst3 dist/VoxMorph.app
+          cd dist && zip -r -y ../VoxMorph-mac.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VoxMorph-mac-${{ matrix.runner }}
+          path: VoxMorph/VoxMorph-mac.zip

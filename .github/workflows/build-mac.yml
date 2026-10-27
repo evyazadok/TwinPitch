@@ -1,7 +1,10 @@
-name: Build macOS plugin
+name: Build TwinPitch (macOS)
 
 on:
   push:
+    paths-ignore:
+      - "VoxMorph/**"
+      - ".github/workflows/build-voxmorph.yml"
   workflow_dispatch:
 
 jobs:
