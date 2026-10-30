@@ -1,0 +1,57 @@
+name: Build all plugins (Windows)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plugin: TwinPitch
+            dir: .
+            product: TwinPitch
+          - plugin: VoxMorph
+            dir: VoxMorph
+            product: VoxMorph
+          - plugin: GoatSlap
+            dir: GoatSlap
+            product: GOAT SLAP
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Space Mono font (GOAT SLAP only, SIL Open Font License)
+        if: matrix.plugin == 'GoatSlap'
+        continue-on-error: true
+        run: |
+          mkdir -p Resources
+          for f in SpaceMono-Regular SpaceMono-Bold SpaceMono-Italic; do
+            curl -sSfL -o Resources/$f.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/$f.ttf"
+          done
+          curl -sSfL -o Resources/OFL.txt "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/OFL.txt"
+
+      - name: Configure
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp -R "build/${{ matrix.plugin }}_artefacts/Release/VST3/${{ matrix.product }}.vst3" dist/
+          cp "build/${{ matrix.plugin }}_artefacts/Release/Standalone/${{ matrix.product }}.exe" dist/
+          cd dist && 7z a -tzip "../${{ matrix.plugin }}-windows.zip" . > /dev/null
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.plugin }}-windows
+          path: ${{ matrix.dir }}/${{ matrix.plugin }}-windows.zip
