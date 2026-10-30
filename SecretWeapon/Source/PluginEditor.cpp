@@ -122,7 +122,8 @@ void RollView::paint (Graphics& g)
             drawNote (x, 48.0f, m, false, 1.0f);
             if (((i * 37 + sc * 11 + key * 7) % 100) < 55 && proc.getParam (IDs::on) > 0.5f)
             {
-                const int d2 = d + (int[]) { 2, -2, 1, 4, -3 }[i % 5]; const int s2 = S.semis[((d2 % S.n) + S.n) % S.n] + 12 * (int) std::floor ((double) d2 / S.n);
+                static const int kOff[5] = { 2, -2, 1, 4, -3 };
+                const int d2 = d + kOff[i % 5]; const int s2 = S.semis[((d2 % S.n) + S.n) % S.n] + 12 * (int) std::floor ((double) d2 / S.n);
                 drawNote (x + 26.0f, 22.0f, (float) (key + 57 + s2 + 12), true, 0.95f);
             }
         }
