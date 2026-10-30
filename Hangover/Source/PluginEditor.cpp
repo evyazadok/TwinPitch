@@ -295,6 +295,7 @@ HangoverEditor::HangoverEditor (HangoverProcessor& p)
 
     addAndMakeVisible (view);
     setSize (960, 780);
+    setScaleFactor (0.75f);     // the plugin window is 720 x 585
     timerCallback();
     startTimerHz (15);
 }
