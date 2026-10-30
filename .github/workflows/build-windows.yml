@@ -39,7 +39,7 @@ jobs:
           curl -sSfL -o Resources/OFL.txt "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/OFL.txt"
 
       - name: Configure
-        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+        run: cmake -B build -A x64
 
       - name: Build
         run: cmake --build build --config Release --parallel 4
