@@ -19,6 +19,9 @@ jobs:
           - plugin: GoatSlap
             dir: GoatSlap
             product: GOAT SLAP
+          - plugin: Hangover
+            dir: Hangover
+            product: HANGOVER
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
@@ -28,8 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch Space Mono font (GOAT SLAP only, SIL Open Font License)
-        if: matrix.plugin == 'GoatSlap'
+      - name: Fetch Space Mono font (GOAT SLAP and HANGOVER only, SIL Open Font License)
+        if: matrix.plugin == 'GoatSlap' || matrix.plugin == 'Hangover'
         continue-on-error: true
         run: |
           mkdir -p Resources
