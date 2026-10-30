@@ -5,6 +5,8 @@ on:
     paths-ignore:
       - "VoxMorph/**"
       - ".github/workflows/build-voxmorph.yml"
+      - "GoatSlap/**"
+      - ".github/workflows/build-goatslap.yml"
   workflow_dispatch:
 
 jobs:

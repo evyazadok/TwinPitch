@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22)
+project(GSSnap VERSION 1.0.0)
+set(CMAKE_CXX_STANDARD 17)
+add_subdirectory(${JUCE_DIR} JUCE)
+juce_add_console_app(gssnap)
+target_sources(gssnap PRIVATE Snap.cpp ../../Source/PluginProcessor.cpp ../../Source/PluginEditor.cpp)
+target_compile_definitions(gssnap PRIVATE GS_HAS_FONT=0 JucePlugin_Name="GOAT SLAP" JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(gssnap PRIVATE juce::juce_audio_processors juce::juce_audio_formats juce::juce_gui_basics)
