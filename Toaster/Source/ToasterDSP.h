@@ -12,7 +12,7 @@ namespace toaster
 
     inline const char* wordFor (double toast)
     {
-        return toast < 0.34 ? "CUTE" : toast < 0.67 ? "HOT" : "FABULOUS";
+        return toast < 0.34 ? "WARM" : toast < 0.67 ? "HOT" : "BURNT";
     }
 
     struct Params

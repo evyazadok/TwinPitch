@@ -2,7 +2,7 @@
 
 One big knob of top end, built like a Pultec EQP-1A boost: a tuned peak with a small air shelf above it, the
 attenuation shelf that fights it the way the real one does, and a little tube and iron colour. The word in the middle
-changes with the knob: CUTE, HOT, FABULOUS.
+changes with the knob: WARM, HOT, BURNT.
 
 - Big knob: the boost. It is not in dB; it opens slowly, then fast (about 17 dB at the very top).
 - 8K / 10K / 12K / 16K: where the boost sits (default 10K).
