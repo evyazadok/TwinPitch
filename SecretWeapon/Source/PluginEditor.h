@@ -64,7 +64,7 @@ private:
     Toggle styles[6], onBtn;
     juce::TextButton mixBtn, listenBtn { "LISTEN . 8 BARS" };
     RollView roll;
-    juce::String heard { "set by hand" };
+    juce::String status, heard { "set by hand" };
     bool listenPending = false;
     juce::Rectangle<int> area;
 

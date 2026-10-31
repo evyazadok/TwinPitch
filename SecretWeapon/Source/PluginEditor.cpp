@@ -226,6 +226,17 @@ void SecretWeaponEditor::timerCallback()
         heard = String ("heard: ") + secretweapon::keyName (k) + " " + String (secretweapon::getScale (s).name).toLowerCase() + " (" + String (e.heardPct.load()) + "% in scale)";
     }
     if (ls == 0 && listenPending) { listenPending = false; heard = "heard nothing, try again"; }
+    {
+        const int hm = e.heardMode.load(), cv = e.coverPct.load(), db = e.inLevelDb.load();
+        if (proc.getParam (IDs::on) < 0.5f) status = "off";
+        else if (hm == 0 || db < -58) status = "waiting for sound...";
+        else
+        {
+            const String what = hm == 1 ? "hearing single notes" : "hearing chords";
+            if (cv < 70) status = what + " - only " + String (cv) + "% fit " + String (secretweapon::keyName (proc.getParam (IDs::key))) + ", press LISTEN";
+            else status = what + " - " + String (cv) + "% in scale - added " + String (e.addedCount.load());
+        }
+    }
     repaint();
 }
 
@@ -269,6 +280,7 @@ void SecretWeaponEditor::paint (Graphics& g)
     g.drawText ("SCALE", 96, 178, 60, 14, Justification::left);
     g.setFont (swui::mono (12.0f));
     g.drawText (heard, 322, 252, 480, 16, Justification::left);
+    g.drawText (status, 322, 272, 480, 16, Justification::left);
 
     g.setFont (swui::mono (11.0f));
     g.drawText ("WHAT IT ADDS", 568, 486, 200, 14, Justification::left);
@@ -296,7 +308,7 @@ void SecretWeaponEditor::paint (Graphics& g)
     g.setFont (swui::mono (12.0f));
     g.drawText (styleHelp[first], 96, 636, 780, 16, Justification::left);
     g.setFont (swui::sansItalic (12.0f));
-    g.drawText ("single notes get the whole scale. chords and loops play it safe with octaves and fifths", 96, 658, 780, 16, Justification::left);
+    g.drawText ("single notes get the whole scale. chords play it safe, loops only get octaves", 96, 658, 780, 16, Justification::left);
     g.setFont (swui::mono (11.0f));
     g.drawText ("SOURCE", 96, 716, 70, 14, Justification::left);
     g.setFont (swui::sansItalic (12.0f));

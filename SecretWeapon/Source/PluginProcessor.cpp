@@ -22,9 +22,9 @@ AudioProcessorValueTreeState::ParameterLayout SecretWeaponProcessor::createLayou
     StringArray scales; for (int i = 0; i < 10; ++i) scales.add (secretweapon::getScale (i).name);
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { IDs::scale, 1 }, "Scale", scales, 1));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { IDs::source, 1 }, "Source", StringArray { "Guitar", "Keys", "Vox", "Bass", "Synth", "Loop" }, 0));
-    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { IDs::density, 1 }, "Density", NormalisableRange<float> (0, 100, 0.1f), 35,
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { IDs::density, 1 }, "Density", NormalisableRange<float> (0, 100, 0.1f), 50,
                      AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (v, 0) + "%"; })));
-    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { IDs::level, 1 }, "Level", NormalisableRange<float> (-24, 0, 0.1f), -9,
+    p.push_back (std::make_unique<AudioParameterFloat> (ParameterID { IDs::level, 1 }, "Level", NormalisableRange<float> (-24, 3, 0.1f), -7,
                      AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (v, 0) + " dB"; })));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { IDs::range, 1 }, "Range", StringArray { "+-1/2 oct", "+-1 oct", "+-2 oct" }, 1));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { IDs::length, 1 }, "Length", StringArray { "1/32", "1/16", "1/8T", "1/8", "1/4" }, 1));
@@ -55,9 +55,13 @@ void SecretWeaponProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer
     ScopedNoDenormals noDenormals;
     const int n = buffer.getNumSamples();
     if (getTotalNumInputChannels() == 1) buffer.copyFrom (1, 0, buffer, 0, 0, n);
+    double ppqNow = -1.0;
     if (auto* ph = getPlayHead())
         if (auto pos = ph->getPosition())
+        {
             if (auto b = pos->getBpm()) if (*b > 20.0 && *b < 400.0) bpm.store (*b);
+            if (pos->getIsPlaying()) if (auto pq = pos->getPpqPosition()) ppqNow = *pq;     // lets added notes land on the beat grid
+        }
 
     auto g = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
     static const double mixes[4] = { 1.0, 0.75, 0.5, 0.25 };
@@ -72,7 +76,7 @@ void SecretWeaponProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer
     q.styles = (g (IDs::stGhost) > 0.5f ? secretweapon::StGhost : 0u) | (g (IDs::stSparkle) > 0.5f ? secretweapon::StSparkle : 0u)
              | (g (IDs::stSteps) > 0.5f ? secretweapon::StSteps : 0u) | (g (IDs::stChord) > 0.5f ? secretweapon::StChord : 0u)
              | (g (IDs::stAnswer) > 0.5f ? secretweapon::StAnswer : 0u) | (g (IDs::stTipsy) > 0.5f ? secretweapon::StTipsy : 0u);
-    q.bpm = bpm.load();
+    q.bpm = bpm.load(); q.ppq = ppqNow;
     engine.setParams (q);
     engine.process (buffer.getWritePointer (0), buffer.getWritePointer (1), n);
 }

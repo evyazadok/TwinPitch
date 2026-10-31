@@ -18,7 +18,7 @@ CHORD TONES a 3rd or 5th under the strong notes. ANSWER after a phrase, a short 
 TIPSY NOTES wrong on purpose (some play backwards) but never outside the scale.
 
 ## Notes
-Latency is 75 ms (reported to the host): the plugin needs to hear the start of a note to know its pitch, and the original
+Latency is 180 ms (reported to the host): the plugin needs to hear the start of a note to know its pitch, and the original
 sound is delayed by the same amount so the added notes line up with it. Added notes are always in the chosen scale; the
 offline test checks every added note across all 10 scales, 3 keys, 5 sources and 7 style settings.
 
