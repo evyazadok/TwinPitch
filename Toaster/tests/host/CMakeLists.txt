@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22)
+project(TOSnap VERSION 1.0.0)
+set(CMAKE_CXX_STANDARD 17)
+add_subdirectory(${JUCE_DIR} JUCE)
+juce_add_console_app(tosnap)
+target_sources(tosnap PRIVATE Snap.cpp ../../Source/PluginProcessor.cpp ../../Source/PluginEditor.cpp)
+target_compile_definitions(tosnap PRIVATE TO_HAS_FONT=0 JucePlugin_Name="TOASTER" JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(tosnap PRIVATE juce::juce_audio_processors juce::juce_audio_formats juce::juce_gui_basics)

@@ -1,0 +1,52 @@
+name: Build TOASTER (macOS)
+
+on:
+  push:
+    paths:
+      - "Toaster/**"
+      - ".github/workflows/build-toaster.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: Toaster
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Space Mono font (SIL Open Font License)
+        continue-on-error: true
+        run: |
+          mkdir -p Resources
+          for f in SpaceMono-Regular SpaceMono-Bold SpaceMono-Italic; do
+            curl -sSfL -o Resources/$f.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/$f.ttf"
+          done
+          curl -sSfL -o Resources/OFL.txt "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/OFL.txt"
+          ls -la Resources
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: "Build (universal: Apple Silicon + Intel)"
+        run: cmake --build build --config Release -j4
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp -R "build/Toaster_artefacts/Release/AU/TOASTER.component" dist/
+          cp -R "build/Toaster_artefacts/Release/VST3/TOASTER.vst3" dist/
+          cp -R "build/Toaster_artefacts/Release/Standalone/TOASTER.app" dist/
+          codesign --force --deep -s - "dist/TOASTER.component" "dist/TOASTER.vst3" "dist/TOASTER.app"
+          cd dist && zip -r -y ../Toaster-mac.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Toaster-mac-${{ matrix.runner }}
+          path: Toaster/Toaster-mac.zip
