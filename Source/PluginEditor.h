@@ -5,8 +5,8 @@
 
 namespace tpui
 {
-    inline const juce::Colour ground { 0xffffd166 };   // butter: the main colour
-    inline const juce::Colour ink    { 0xff0b2e33 };   // dark teal: buttons, titles, left voice
+    inline const juce::Colour ground { 0xffb19aff };   // cyber lavender: the main colour
+    inline const juce::Colour ink    { 0xff2c1a8f };   // deep violet: buttons, titles, left voice
     inline const juce::Colour wine   { 0xff6e1a33 };   // right voice
     inline const juce::Colour rose   { 0xffff4d6d };
     inline const juce::Colour white  { 0xffffffff };

@@ -5,7 +5,7 @@
 
 namespace vmui
 {
-    inline const juce::Colour ground { 0xffff4d6d };   // rose: the main colour
+    inline const juce::Colour ground { 0xffffbfdc };   // soft flamingo: the main colour
     inline const juce::Colour ink    { 0xff4a0f22 };   // dark wine: buttons, titles
     inline const juce::Colour violet { 0xff2c1a8f };   // the formant side
     inline const juce::Colour butter { 0xffffd166 };
