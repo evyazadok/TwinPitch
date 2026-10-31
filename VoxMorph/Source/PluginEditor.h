@@ -3,23 +3,25 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 
+namespace vmui
+{
+    inline const juce::Colour ground { 0xffff4d6d };   // rose: the main colour
+    inline const juce::Colour ink    { 0xff4a0f22 };   // dark wine: buttons, titles
+    inline const juce::Colour violet { 0xff2c1a8f };   // the formant side
+    inline const juce::Colour butter { 0xffffd166 };
+    inline const juce::Colour white  { 0xffffffff };
+    juce::Font mono (float size, bool bold = false);
+}
+
 class VMLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    VMLookAndFeel();
     void drawRotarySlider (juce::Graphics&, int, int, int, int, float, float, float, juce::Slider&) override;
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool, bool) override;
     void drawButtonText (juce::Graphics&, juce::TextButton&, bool, bool) override;
-
-    static inline const juce::Colour bg     { 0xff15131a };
-    static inline const juce::Colour panel  { 0xff211d29 };
-    static inline const juce::Colour accent { 0xffff5c8a };   // pink
-    static inline const juce::Colour alt    { 0xff8f7cff };   // violet
-    static inline const juce::Colour text   { 0xffeeeaf4 };
-    static inline const juce::Colour dim    { 0xff8d879a };
 };
 
-// Shows the detected input note and the note coming out
+// the note coming in and the note going out
 class NoteDisplay : public juce::Component, private juce::Timer
 {
 public:
@@ -44,10 +46,9 @@ private:
     struct Knob
     {
         juce::Slider slider;
-        juce::Label label;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> att;
     };
-    void setupKnob (Knob&, const char* id, const juce::String& name, bool altColour = false);
+    void setupKnob (Knob&, const char* id, const juce::String& name, bool big, bool violet);
     void timerCallback() override;
 
     VoxMorphProcessor& proc;

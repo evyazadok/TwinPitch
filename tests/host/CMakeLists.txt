@@ -8,5 +8,5 @@ target_compile_definitions(tphost PRIVATE JUCE_PLUGINHOST_VST3=1 JUCE_MODAL_LOOP
 target_link_libraries(tphost PRIVATE juce::juce_audio_processors juce::juce_audio_formats juce::juce_gui_basics)
 juce_add_console_app(tpsnap)
 target_sources(tpsnap PRIVATE Snap.cpp ../../Source/PluginProcessor.cpp ../../Source/PluginEditor.cpp)
-target_compile_definitions(tpsnap PRIVATE JucePlugin_Name="TwinPitch" JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_compile_definitions(tpsnap PRIVATE TP_HAS_FONT=0 JucePlugin_Name="TwinPitch" JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 target_link_libraries(tpsnap PRIVATE juce::juce_audio_processors juce::juce_audio_formats juce::juce_gui_basics juce::juce_dsp)

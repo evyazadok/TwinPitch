@@ -18,7 +18,7 @@ int main (int, char** argv)
     }
     std::unique_ptr<AudioProcessorEditor> ed (proc.createEditor());
     MessageManager::getInstance()->runDispatchLoopUntil (500);
-    auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 2.0f);
+    auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.5f);
     File png (argv[1]); png.deleteFile(); FileOutputStream os (png); PNGImageFormat().writeImageToStream (img, os);
     std::printf ("latency %d\n", proc.getLatencySamples());
     return 0;

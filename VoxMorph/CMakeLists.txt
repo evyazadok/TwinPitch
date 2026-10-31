@@ -45,7 +45,24 @@ target_sources(VoxMorph PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp)
 
+# Space Mono (SIL Open Font License) is embedded when the font files are present (the workflows download them).
+set(VM_FONTS
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/SpaceMono-Regular.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/SpaceMono-Bold.ttf
+    ${CMAKE_CURRENT_SOURCE_DIR}/Resources/SpaceMono-Italic.ttf)
+set(VM_HAS_FONT 1)
+foreach(f ${VM_FONTS})
+    if(NOT EXISTS ${f})
+        set(VM_HAS_FONT 0)
+    endif()
+endforeach()
+if(VM_HAS_FONT)
+    juce_add_binary_data(VoxMorphData SOURCES ${VM_FONTS})
+    target_link_libraries(VoxMorph PRIVATE VoxMorphData)
+endif()
+
 target_compile_definitions(VoxMorph PUBLIC
+    VM_HAS_FONT=${VM_HAS_FONT}
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0

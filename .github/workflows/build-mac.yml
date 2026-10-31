@@ -8,6 +8,12 @@ on:
       - "GoatSlap/**"
       - ".github/workflows/build-goatslap.yml"
       - ".github/workflows/build-windows.yml"
+      - "Hangover/**"
+      - ".github/workflows/build-hangover.yml"
+      - "SecretWeapon/**"
+      - ".github/workflows/build-secretweapon.yml"
+      - "Toaster/**"
+      - ".github/workflows/build-toaster.yml"
   workflow_dispatch:
 
 jobs:
@@ -20,6 +26,15 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch Space Mono font (SIL Open Font License)
+        continue-on-error: true
+        run: |
+          mkdir -p Resources
+          for f in SpaceMono-Regular SpaceMono-Bold SpaceMono-Italic; do
+            curl -sSfL -o Resources/$f.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/$f.ttf"
+          done
+          curl -sSfL -o Resources/OFL.txt "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/OFL.txt"
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release

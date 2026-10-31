@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fetch Space Mono font (GOAT SLAP and HANGOVER only, SIL Open Font License)
-        if: matrix.plugin == 'GoatSlap' || matrix.plugin == 'Hangover' || matrix.plugin == 'SecretWeapon' || matrix.plugin == 'Toaster'
+        if: matrix.plugin == 'TwinPitch' || matrix.plugin == 'VoxMorph' || matrix.plugin == 'GoatSlap' || matrix.plugin == 'Hangover' || matrix.plugin == 'SecretWeapon' || matrix.plugin == 'Toaster'
         continue-on-error: true
         run: |
           mkdir -p Resources

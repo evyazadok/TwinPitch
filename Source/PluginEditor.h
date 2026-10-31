@@ -3,69 +3,68 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 
-//==============================================================================
-class TwinLookAndFeel : public juce::LookAndFeel_V4
+namespace tpui
+{
+    inline const juce::Colour ground { 0xffffd166 };   // butter: the main colour
+    inline const juce::Colour ink    { 0xff0b2e33 };   // dark teal: buttons, titles, left voice
+    inline const juce::Colour wine   { 0xff6e1a33 };   // right voice
+    inline const juce::Colour rose   { 0xffff4d6d };
+    inline const juce::Colour white  { 0xffffffff };
+    juce::Font mono (float size, bool bold = false);
+}
+
+class TPLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    TwinLookAndFeel();
-    void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h, float pos,
-                           float startAngle, float endAngle, juce::Slider&) override;
-    void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool over, bool down) override;
-    void drawButtonText (juce::Graphics&, juce::TextButton&, bool over, bool down) override;
-
-    static inline const juce::Colour bg      { 0xff17171b };
-    static inline const juce::Colour panel   { 0xff222228 };
-    static inline const juce::Colour accent  { 0xffe8a33d };   // amber
-    static inline const juce::Colour accent2 { 0xff4fc3c9 };   // teal (right side)
-    static inline const juce::Colour text    { 0xffe9e6df };
-    static inline const juce::Colour dim     { 0xff8a8780 };
+    void drawRotarySlider (juce::Graphics&, int, int, int, int, float, float, float, juce::Slider&) override;
+    void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool, bool) override;
+    void drawButtonText (juce::Graphics&, juce::TextButton&, bool, bool) override;
 };
 
-//==============================================================================
-// Animated picture of what the effect does: the left voice sweeps up, the right voice down,
-// each offset in time. Spread follows Detune, offset follows Delay, wobble follows Style III.
+// two voices drawn in dots: the left one sweeps up, the right one down, each offset in time
 class SpreadView : public juce::Component, private juce::Timer
 {
 public:
-    explicit SpreadView (TwinPitchProcessor& p);
+    explicit SpreadView (TwinPitchProcessor& p) : proc (p) { startTimerHz (30); }
     void paint (juce::Graphics&) override;
+private:
+    void timerCallback() override { t += 1.0f / 30.0f; repaint(); }
+    TwinPitchProcessor& proc;
+    float t = 0.0f;
+};
 
+class MeterRows : public juce::Component, private juce::Timer
+{
+public:
+    explicit MeterRows (TwinPitchProcessor& p) : proc (p) { startTimerHz (30); }
+    void paint (juce::Graphics&) override;
 private:
     void timerCallback() override;
     TwinPitchProcessor& proc;
-    float t = 0.0f, levL = 0.0f, levR = 0.0f;
+    float levL = 0.0f, levR = 0.0f;
 };
 
-//==============================================================================
 class TwinPitchEditor : public juce::AudioProcessorEditor
 {
 public:
     explicit TwinPitchEditor (TwinPitchProcessor&);
     ~TwinPitchEditor() override;
-
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
-    struct Knob
-    {
-        juce::Slider slider;
-        juce::Label label;
-        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
-    };
-
-    void setupKnob (Knob&, const juce::String& paramId, const juce::String& name);
+    struct Knob { juce::Slider slider; std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment; };
+    void setupKnob (Knob&, const juce::String& paramId, const juce::String& name, bool big);
     void updateStyleButtons();
 
     TwinPitchProcessor& proc;
-    TwinLookAndFeel lnf;
-
+    TPLookAndFeel lnf;
     Knob detune, delay, focus, mix, output;
     juce::TextButton styleButtons[3];
     std::unique_ptr<juce::ParameterAttachment> styleAttachment;
     int currentStyle = 0;
-
     SpreadView spread;
+    MeterRows meters;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TwinPitchEditor)
 };
