@@ -13,6 +13,7 @@ on:
       - "SecretWeapon/**"
       - ".github/workflows/build-secretweapon.yml"
       - "Toaster/**"
+      - "Bouncer/**"
       - ".github/workflows/build-toaster.yml"
   workflow_dispatch:
 

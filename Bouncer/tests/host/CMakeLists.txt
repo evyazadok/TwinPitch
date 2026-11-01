@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.22)
+project(BOSnap VERSION 1.0.0)
+set(CMAKE_CXX_STANDARD 17)
+add_subdirectory(${JUCE_DIR} JUCE)
+juce_add_console_app(bosnap)
+target_sources(bosnap PRIVATE Snap.cpp ../../Source/PluginProcessor.cpp ../../Source/PluginEditor.cpp
+    ../../Source/rnnoise/denoise.c ../../Source/rnnoise/kiss_fft.c ../../Source/rnnoise/pitch.c ../../Source/rnnoise/celt_lpc.c ../../Source/rnnoise/rnn.c ../../Source/rnnoise/rnn_data.c)
+target_include_directories(bosnap PRIVATE ../../Source/rnnoise)
+target_compile_definitions(bosnap PRIVATE BO_HAS_FONT=0 JucePlugin_Name="BOUNCER" JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(bosnap PRIVATE juce::juce_audio_processors juce::juce_audio_formats juce::juce_gui_basics)
