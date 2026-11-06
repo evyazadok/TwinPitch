@@ -1,18 +1,18 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "SledgeDSP.h"
+#include "ChariphDSP.h"
 
 namespace IDs
 {
-    #define SL_ID(x) inline constexpr const char* x = #x;
-    SL_ID (drive) SL_ID (mix) SL_ID (output) SL_ID (style) SL_ID (autoGain) SL_ID (on)
-    #undef SL_ID
+    #define CH_ID(x) inline constexpr const char* x = #x;
+    CH_ID (drive) CH_ID (mix) CH_ID (output) CH_ID (style) CH_ID (autoGain) CH_ID (on)
+    #undef CH_ID
 }
 
-class SledgeProcessor : public juce::AudioProcessor
+class ChariphProcessor : public juce::AudioProcessor
 {
 public:
-    SledgeProcessor();
+    ChariphProcessor();
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout&) const override;
@@ -38,10 +38,10 @@ public:
     float getParam (const char* id) const { return apvts.getRawParameterValue (id)->load(); }
 
     juce::AudioProcessorValueTreeState apvts;
-    sledge::Engine engine;
+    chariph::Engine engine;
 
 private:
-    sledge::Params readParams() const;
+    chariph::Params readParams() const;
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SledgeProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChariphProcessor)
 };

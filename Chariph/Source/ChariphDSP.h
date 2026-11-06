@@ -6,21 +6,21 @@
 #include <cstdint>
 #include <cstring>
 
-// SLEDGE: a distortion box in the Decapitator family. 40 styles (20 "standard" ones for vocals and electric guitars,
+// CHARIPH: a distortion box in the Decapitator family. 40 styles (20 "standard" ones for vocals and electric guitars,
 // 20 stranger ones with wobble, flanger, phaser, vowel filters, folders...), one big DRIVE knob, MIX, OUTPUT, AUTO GAIN.
 //
-// Every style is a short chain of blocks. Blocks that bend the wave run at 4x oversampling (two halfband FIR stages),
+// Every style is a short chain of blocks. Blocks that bend the wave run at 2x oversampling (halfband FIR),
 // filters and modulation effects run at the normal rate (before or after the bending). Nothing here depends on JUCE.
-namespace sledge
+namespace chariph
 {
     static const double kPi = 3.14159265358979323846;
     static constexpr int kNumStyles = 40;
     static constexpr int kMaxBlocks = 8;
-    static constexpr int kOS = 4;
+    static constexpr int kOS = 2;
 
     inline const char* wordFor (double drive)
     {
-        return drive < 0.34 ? "HIT" : drive < 0.67 ? "SMASH" : "CRASH";
+        return drive < 0.34 ? "SPICY" : drive < 0.67 ? "HOT" : "GIVE HIM SOME MILK";
     }
 
     //==========================================================================================================
@@ -154,6 +154,14 @@ namespace sledge
     //==========================================================================================================
     // Building blocks
     //==========================================================================================================
+    // tanh by a continued-fraction rational: within 1e-4 of the real one, several times faster
+    inline double fastTanh (double x)
+    {
+        if (x > 4.97) return 1.0;
+        if (x < -4.97) return -1.0;
+        const double x2 = x * x;
+        return x * (135135.0 + x2 * (17325.0 + x2 * (378.0 + x2))) / (135135.0 + x2 * (62370.0 + x2 * (3150.0 + 28.0 * x2)));
+    }
     inline double dbToLin (double db) { return std::pow (10.0, db / 20.0); }
     inline double lerp (double a, double b, double t) { return a + (b - a) * t; }
     inline double logLerp (double a, double b, double t) { return std::exp (lerp (std::log (std::max (a, 1.0e-3)), std::log (std::max (b, 1.0e-3)), t)); }
@@ -278,19 +286,17 @@ namespace sledge
 
     struct OSDesign
     {
-        Halfband s1, s2;      // 1x -> 2x, and 2x -> 4x
+        Halfband s1;          // 1x -> 2x
         double lat = 0;       // up + down together, in samples at the normal rate (measured from an impulse, so it is always right)
         OSDesign()
         {
-            s1.design (39, 8.0); s2.design (11, 8.0);
-            Up2 u1, u2a, u2b; Down2 d1, d2a, d2b;
-            u1.hb = &s1; u2a.hb = u2b.hb = &s2; d1.hb = &s1; d2a.hb = d2b.hb = &s2;
+            s1.design (39, 8.0);
+            Up2 u1; Down2 d1; u1.hb = &s1; d1.hb = &s1;
             double sw = 0, swn = 0;
             for (int i = 0; i < 400; ++i)
             {
-                const double x = i == 0 ? 1.0 : 0.0; double a0, a1, o[4];
-                u1.process (x, a0, a1); u2a.process (a0, o[0], o[1]); u2b.process (a1, o[2], o[3]);
-                const double b0 = d2a.process (o[0], o[1]), b1 = d2b.process (o[2], o[3]), y = d1.process (b0, b1);
+                const double x = i == 0 ? 1.0 : 0.0; double a0, a1;
+                u1.process (x, a0, a1); const double y = d1.process (a0, a1);
                 sw += i * y * y; swn += y * y;
             }
             lat = sw / swn;
@@ -328,10 +334,7 @@ namespace sledge
         {
             fs = sr; fsOS = sr * kOS; ch = channel; lfoOff = 0.12 * channel;
             const auto& d = osDesign();
-            for (auto* u : { &up1, &up2a, &up2b }) u->reset();
-            up1.hb = &d.s1; up2a.hb = &d.s2; up2b.hb = &d.s2;
-            dn1.hb = &d.s1; dn2a.hb = &d.s2; dn2b.hb = &d.s2;
-            dn1.reset(); dn2a.reset(); dn2b.reset();
+            up1.hb = &d.s1; dn1.hb = &d.s1; up1.reset(); dn1.reset();
             aEnvA = 1.0 - std::exp (-1.0 / (0.003 * fsOS)); aEnvR = 1.0 - std::exp (-1.0 / (0.15 * fsOS));
             aGain = 1.0 - std::exp (-1.0 / (0.004 * fsOS));
             dcR = std::exp (-2 * kPi * 12.0 / fs);
@@ -343,7 +346,7 @@ namespace sledge
             n = 0; while (n < kMaxBlocks && style->blk[n].type != B_END) ++n;
             for (auto& b : bs) b = BS();
             std::fill (dl.begin(), dl.end(), 0.0f); wp = 0;
-            up1.reset(); up2a.reset(); up2b.reset(); dn1.reset(); dn2a.reset(); dn2b.reset();
+            up1.reset(); dn1.reset();
             dcX = dcY = 0; first = true;
         }
 
@@ -388,20 +391,18 @@ namespace sledge
 
         inline float process (float xin, double beat)
         {
-            double x = xin;
+            ++tick; double x = xin;
             for (int i = 0; i < n; ++i) if (style->blk[i].dom == 0) x = runBase (i, x, beat);
-            // up x4
-            double a0, a1, b0, b1, os[4];
-            up1.process (x, a0, a1);
-            up2a.process (a0, os[0], os[1]); up2b.process (a1, os[2], os[3]);
-            for (int j = 0; j < 4; ++j)
+            // up x2, bend, back down
+            double os[2];
+            up1.process (x, os[0], os[1]);
+            for (int j = 0; j < 2; ++j)
             {
                 double v = os[j];
                 for (int i = 0; i < n; ++i) if (style->blk[i].dom == 1) v = runOS (i, v);
                 os[j] = v;
             }
-            b0 = dn2a.process (os[0], os[1]); b1 = dn2b.process (os[2], os[3]);
-            x = dn1.process (b0, b1);
+            x = dn1.process (os[0], os[1]);
             for (int i = 0; i < n; ++i) if (style->blk[i].dom == 2) x = runBase (i, x, beat);
             // DC blocker
             const double y = x - dcX + dcR * dcY; dcX = x; dcY = y;
@@ -439,39 +440,39 @@ namespace sledge
             const double u = s.g * x;
             switch (k.type)
             {
-                case S_TANH: return std::tanh (u + s.p0) - s.p1;
+                case S_TANH: return fastTanh (u + s.p0) - s.p1;
                 case S_PENT: return clipN (u + s.p1, s.p0) - s.p2;
                 case S_DIODE: return u >= 0 ? 1 - std::exp (-u) : -s.p0 * (1 - std::exp (u / s.p0));
                 case S_FUZZ:
                 {
-                    const double v = u + s.p0, y = std::tanh ((v > 0 ? 2.2 : 1.0) * v) - s.p2;
+                    const double v = u + s.p0, y = fastTanh ((v > 0 ? 2.2 : 1.0) * v) - s.p2;
                     return y * (std::abs (u) / (std::abs (u) + s.p1 + 1.0e-9));
                 }
                 case S_CLIP: return clipN (u, s.p0);
                 case S_FOLDS: return std::sin (0.5 * kPi * std::min (std::max (u, -400.0), 400.0));
                 case S_FOLDT: { const double t = 0.25 * u + 0.25; return 4.0 * std::abs (t - std::round (t)) - 1.0; }
-                case S_RECT: return std::tanh (u * (1 - s.p0) + std::abs (u) * s.p0);
+                case S_RECT: return fastTanh (u * (1 - s.p0) + std::abs (u) * s.p0);
                 case S_XOVER:
                 {
                     const double a = std::abs (u) - s.p0;
-                    return a <= 0 ? 0.0 : std::tanh ((u > 0 ? a : -a) * (1 + s.p0));
+                    return a <= 0 ? 0.0 : fastTanh ((u > 0 ? a : -a) * (1 + s.p0));
                 }
                 case S_SAG:
                 {
                     const double au = std::abs (u);
                     s.env += (au > s.env ? aEnvA : aEnvR) * (au - s.env);
                     const double e = std::min (s.env, 1.5), bias = s.p0 * e;
-                    return std::tanh (u / (1 + s.p1 * e) + bias) - std::tanh (bias);
+                    return fastTanh (u / (1 + s.p1 * e) + bias) - fastTanh (bias);
                 }
                 case S_CHEB:
                 {
-                    const double v = std::tanh (u);
+                    const double v = fastTanh (u);
                     return v + s.p0 * (2 * v * v - 1) + s.p1 * (4 * v * v * v - 3 * v);
                 }
                 case S_SLEW:
                 {
                     double d = u - s.env2; d = std::min (std::max (d, -s.p0), s.p0); s.env2 += d;
-                    return std::tanh (0.9 * s.env2);
+                    return fastTanh (0.9 * s.env2);
                 }
                 default: return x;
             }
@@ -490,7 +491,7 @@ namespace sledge
                 case X_WOB: case X_SIREN:   // a = Hz low, b = Hz high, c = Q, d = beats per cycle, e = lfo shape
                 {
                     const double l = lfoShape (phaseFor (beat, k.d), (int) k.e);
-                    s.s[0].set (fs, k.a * std::pow ((double) k.b / k.a, l), k.c);
+                    if ((tick & 7) == 0) s.s[0].set (fs, k.a * std::pow ((double) k.b / k.a, l), k.c);
                     double lp, bp, hp; s.s[0].process (x, lp, bp, hp);
                     if (k.type == X_WOB) return lp;
                     return 0.65 * s.s[0].k * bp + 0.35 * x;
@@ -503,18 +504,19 @@ namespace sledge
                     const int i0 = (int) rp & 8191, i1 = (i0 + 1) & 8191; const double fr = rp - std::floor (rp);
                     const double del = dl[(size_t) i0] * (1 - fr) + dl[(size_t) i1] * fr;
                     s.z[0] += 0.5 * (del - s.z[0]);                               // damp the feedback a little
-                    dl[(size_t) wp] = (float) (x + std::tanh (k.c * s.z[0]));
+                    dl[(size_t) wp] = (float) (x + fastTanh (k.c * s.z[0]));
                     wp = (wp + 1) & 8191;
                     return x + k.e * del;
                 }
                 case X_PHS:   // a = Hz low, b = Hz high, c = feedback, d = beats per cycle, e = stages (4 or 6)
                 {
                     const double l = lfoShape (phaseFor (beat, k.d), 0);
-                    const double t = std::tan (kPi * std::min (k.a * std::pow ((double) k.b / k.a, l), fs * 0.45) / fs), a = (t - 1) / (t + 1);
+                    if ((tick & 7) == 0) { const double t = std::tan (kPi * std::min (k.a * std::pow ((double) k.b / k.a, l), fs * 0.45) / fs); s.p1 = (t - 1) / (t + 1); }
+                    const double a = s.p1;
                     double v = x + k.c * s.z[7];
                     const int st = k.e > 5 ? 6 : 4;
                     for (int j = 0; j < st; ++j) { const double y = a * v + s.z[j]; s.z[j] = v - a * y; v = y; }
-                    s.z[7] = std::tanh (v);
+                    s.z[7] = fastTanh (v);
                     return 0.5 * (x + v);
                 }
                 case X_WAH:   // a = Hz low, b = Hz high, c = Q, d = sensitivity
@@ -525,7 +527,7 @@ namespace sledge
                     s.env2 += (1.0 - std::exp (-1.0 / (1.5 * fs))) * (ax - s.env2);
                     const double r = std::min (1.0, k.d * 0.5 * s.env / (s.env2 + 1.0e-4));
                     s.p0 += (1.0 - std::exp (-1.0 / (0.02 * fs))) * (r - s.p0);
-                    s.s[0].set (fs, k.a * std::pow ((double) k.b / k.a, s.p0), k.c);
+                    if ((tick & 7) == 0) s.s[0].set (fs, k.a * std::pow ((double) k.b / k.a, s.p0), k.c);
                     double lp, bp, hp; s.s[0].process (x, lp, bp, hp);
                     return 1.3 * s.s[0].k * bp + 0.12 * x;
                 }
@@ -539,7 +541,7 @@ namespace sledge
                     double out = 0; static const double amp[3] = { 1.0, 0.6, 0.35 }, q[3] = { 6, 9, 12 };
                     for (int j = 0; j < 3; ++j)
                     {
-                        s.s[j].set (fs, std::exp (lerp (std::log (F[v0][j]), std::log (F[v0 + 1][j]), fr)), q[j] * k.c);
+                        if ((tick & 7) == 0) s.s[j].set (fs, std::exp (lerp (std::log (F[v0][j]), std::log (F[v0 + 1][j]), fr)), q[j] * k.c);
                         double lp, bp, hp; s.s[j].process (x, lp, bp, hp); out += amp[j] * s.s[j].k * bp;
                     }
                     return (1 - k.e) * x + k.e * 2.2 * out;
@@ -565,7 +567,7 @@ namespace sledge
                     const double del = dl[(size_t) i0] * (1 - fr) + dl[(size_t) i1] * fr;
                     const double c = 1.0 - std::exp (-2 * kPi * k.c / fs);
                     s.z[0] += c * (del - s.z[0]);
-                    dl[(size_t) wp] = (float) (x + std::tanh (k.b * s.z[0]));
+                    dl[(size_t) wp] = (float) (x + fastTanh (k.b * s.z[0]));
                     wp = (wp + 1) & 8191;
                     return x + k.d * del;
                 }
@@ -574,11 +576,11 @@ namespace sledge
         }
 
         double fs = 48000, fsOS = 192000, lfoOff = 0, aEnvA = 0.01, aEnvR = 0.0001, aGain = 0.01, dcR = 0.998, dcX = 0, dcY = 0;
-        int ch = 0, n = 0, wp = 0; bool first = true;
+        int ch = 0, n = 0, wp = 0; unsigned tick = 0; bool first = true;
         const StyleDef* style = &kStyles[0];
         BS bs[kMaxBlocks];
         std::vector<float> dl;
-        Up2 up1, up2a, up2b; Down2 dn1, dn2a, dn2b;
+        Up2 up1; Down2 dn1;
     };
 
     //==========================================================================================================
@@ -613,11 +615,11 @@ namespace sledge
             dryInt = std::abs (T - std::round (T)) < 1.0e-6; dryDelay = (int) std::round (T);
             if (! dryInt)       // half-sample latencies: a short windowed-sinc fractional delay
             {
-                const int H = (int) std::ceil (T) + 4;
-                dryLen = 2 * H + 1; dryTaps.assign ((size_t) dryLen, 0.0); double sum = 0;
+                const int H = 8; dryK0 = (int) std::floor (T) - H + 1;       // 16 taps around the delay
+                dryLen = 2 * H; dryTaps.assign ((size_t) dryLen, 0.0); double sum = 0;
                 for (int k = 0; k < dryLen; ++k)
                 {
-                    const double x = k - T, w = 0.42 + 0.5 * std::cos (kPi * x / (H + 0.5)) + 0.08 * std::cos (2 * kPi * x / (H + 0.5));
+                    const double x = (dryK0 + k) - T, w = 0.5 + 0.5 * std::cos (kPi * x / (H + 0.5));
                     const double sinc = std::abs (x) < 1.0e-9 ? 1.0 : std::sin (kPi * x) / (kPi * x);
                     dryTaps[(size_t) k] = std::abs (x) <= H + 0.5 ? sinc * w : 0.0; sum += dryTaps[(size_t) k];
                 }
@@ -645,6 +647,7 @@ namespace sledge
                 onMix += aOn * ((target.on ? 1.0 : 0.0) - onMix);
                 if ((counter++ & 31) == 0)
                 {
+                    og = dbToLin (cur.outDb);
                     voice[active][0].updateCoefs (cur.drive); voice[active][1].updateCoefs (cur.drive);
                     if (fading) { voice[1 - active][0].updateCoefs (cur.drive); voice[1 - active][1].updateCoefs (cur.drive); }
                 }
@@ -667,7 +670,7 @@ namespace sledge
                 const float g = (float) agGain;
 
                 const float dryL = delayedDry (0, dl0), dryR = delayedDry (1, dr0);
-                const double m = cur.mix * onMix, og = dbToLin (cur.outDb);
+                const double m = cur.mix * onMix;
                 float ol2 = (float) (og * (dryL + m * (wl * g - dryL))), or2 = (float) (og * (dryR + m * (wr * g - dryR)));
                 ol2 = std::min (std::max (ol2, -32.0f), 32.0f); or2 = std::min (std::max (or2, -32.0f), 32.0f);
                 l[i] = ol2; r[i] = or2;
@@ -692,13 +695,13 @@ namespace sledge
             dryBuf[c][(size_t) dryPos[c]] = x;
             double s = 0;
             if (dryInt) s = dryBuf[c][(size_t) ((dryPos[c] - dryDelay) & 511)];
-            else for (int k = 0; k < dryLen; ++k) s += dryTaps[(size_t) k] * dryBuf[c][(size_t) ((dryPos[c] - k) & 511)];
+            else for (int k = 0; k < dryLen; ++k) s += dryTaps[(size_t) k] * dryBuf[c][(size_t) ((dryPos[c] - dryK0 - k) & 511)];
             dryPos[c] = (dryPos[c] + 1) & 511;
             return (float) s;
         }
         double fs = 48000, aSm = 0.001, aOn = 0.01, aPow = 1e-4, aGainSm = 1e-4, fadeStep = 0.001, fade = 1.0;
-        double pIn = 0, pOut = 0, agGain = 1, onMix = 1, beat = 0; unsigned counter = 0;
-        int active = 0, dryLen = 73, dryDelay = 0, dryPos[2] = { 0, 0 }; bool fading = false, dryInt = true;
+        double pIn = 0, pOut = 0, agGain = 1, onMix = 1, beat = 0, og = 1; unsigned counter = 0;
+        int active = 0, dryK0 = 0, dryLen = 16, dryDelay = 0, dryPos[2] = { 0, 0 }; bool fading = false, dryInt = true;
         std::vector<double> dryTaps; std::vector<float> dryBuf[2];
         Params target, cur;
         Chan voice[2][2];

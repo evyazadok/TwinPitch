@@ -1,10 +1,10 @@
-name: Build SLEDGE (macOS)
+name: Build CHARIPH (macOS)
 
 on:
   push:
     paths:
-      - "Sledge/**"
-      - ".github/workflows/build-sledge.yml"
+      - "Chariph/**"
+      - ".github/workflows/build-chariph.yml"
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 60
     defaults:
       run:
-        working-directory: Sledge
+        working-directory: Chariph
     steps:
       - uses: actions/checkout@v4
 
@@ -40,13 +40,13 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          cp -R "build/Sledge_artefacts/Release/AU/SLEDGE.component" dist/
-          cp -R "build/Sledge_artefacts/Release/VST3/SLEDGE.vst3" dist/
-          cp -R "build/Sledge_artefacts/Release/Standalone/SLEDGE.app" dist/
-          codesign --force --deep -s - "dist/SLEDGE.component" "dist/SLEDGE.vst3" "dist/SLEDGE.app"
-          cd dist && zip -r -y ../Sledge-mac.zip .
+          cp -R "build/Chariph_artefacts/Release/AU/CHARIPH.component" dist/
+          cp -R "build/Chariph_artefacts/Release/VST3/CHARIPH.vst3" dist/
+          cp -R "build/Chariph_artefacts/Release/Standalone/CHARIPH.app" dist/
+          codesign --force --deep -s - "dist/CHARIPH.component" "dist/CHARIPH.vst3" "dist/CHARIPH.app"
+          cd dist && zip -r -y ../Chariph-mac.zip .
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Sledge-mac-${{ matrix.runner }}
-          path: Sledge/Sledge-mac.zip
+          name: Chariph-mac-${{ matrix.runner }}
+          path: Chariph/Chariph-mac.zip

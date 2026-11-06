@@ -1,13 +1,13 @@
 #include "PluginEditor.h"
-#if SL_HAS_FONT
+#if CH_HAS_FONT
  #include "BinaryData.h"
 #endif
 
 using namespace juce;
 
-Font slui::mono (float size, bool bold)
+Font chui::mono (float size, bool bold)
 {
-   #if SL_HAS_FONT
+   #if CH_HAS_FONT
     static auto reg = Typeface::createSystemTypefaceFor (BinaryData::SpaceMonoRegular_ttf, BinaryData::SpaceMonoRegular_ttfSize);
     static auto bld = Typeface::createSystemTypefaceFor (BinaryData::SpaceMonoBold_ttf, BinaryData::SpaceMonoBold_ttfSize);
     return Font (FontOptions (bold ? bld : reg).withHeight (size));
@@ -17,19 +17,19 @@ Font slui::mono (float size, bool bold)
 }
 
 //==============================================================================
-void SLLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h, float pos, float, float, Slider& s)
+void CHLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h, float pos, float, float, Slider& s)
 {
     auto area = Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
     const bool big = (bool) s.getProperties().getWithDefault ("big", false);
     if (big)
     {
         const auto c = area.getCentre(); const float R = 142.0f;
-        const auto lit = slui::ink;                                  // the outer dots turn yellow once it crashes
+        const auto lit = chui::ink;                                  // the outer dots turn chili red once it burns
         for (int i = 0; i < 41; ++i)
         {
             const float t = (float) i / 40.0f, a = degreesToRadians (-225.0f + 270.0f * t);
             const bool on = t <= pos + 1.0e-4f && pos > 0.001f; const float sz = on ? 12.0f : 5.0f;
-            g.setColour (on ? (t > 0.67f ? slui::hot : slui::ink) : slui::ink.withAlpha (0.35f));
+            g.setColour (on ? (t > 0.67f ? chui::hot : chui::ink) : chui::ink.withAlpha (0.35f));
             g.fillRect (c.x + R * std::cos (a) - sz * 0.5f, c.y + R * std::sin (a) - sz * 0.5f, sz, sz);
         }
         for (int i = 0; i < 36; ++i)
@@ -38,10 +38,19 @@ void SLLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h, f
             g.setColour (lit.withAlpha (0.2f + 0.45f * pos));
             g.fillRect (c.x + 98.0f * std::cos (a) - 1.5f, c.y + 98.0f * std::sin (a) - 1.5f, 3.0f, 3.0f);
         }
-        const String word = sledge::wordFor (s.getValue());
+        const String word = chariph::wordFor (s.getValue());
         g.setColour (lit);
-        g.setFont (slui::mono (40.0f, true));
-        g.drawText (word, Rectangle<float> (c.x - 100.0f, c.y - 28.0f, 200.0f, 56.0f), Justification::centred);
+        if (word.length() > 6)      // GIVE HIM / SOME MILK on two lines
+        {
+            g.setFont (chui::mono (25.0f, true));
+            g.drawText (word.upToFirstOccurrenceOf (" SOME", false, false), Rectangle<float> (c.x - 100.0f, c.y - 34.0f, 200.0f, 32.0f), Justification::centred);
+            g.drawText ("SOME MILK", Rectangle<float> (c.x - 100.0f, c.y + 2.0f, 200.0f, 32.0f), Justification::centred);
+        }
+        else
+        {
+            g.setFont (chui::mono (40.0f, true));
+            g.drawText (word, Rectangle<float> (c.x - 100.0f, c.y - 28.0f, 200.0f, 56.0f), Justification::centred);
+        }
         return;
     }
     auto labelArea = area.removeFromBottom (22.0f);
@@ -52,7 +61,7 @@ void SLLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h, f
     {
         const float t = (float) i / 20.0f, a = degreesToRadians (-225.0f + 270.0f * t);
         const bool on = t <= pos + 1.0e-4f && pos > 0.001f; const float sz = on ? 6.0f : 3.0f;
-        g.setColour (on ? slui::ink : slui::ink.withAlpha (0.35f));
+        g.setColour (on ? chui::ink : chui::ink.withAlpha (0.35f));
         g.fillRect (c.x + r * std::cos (a) - sz * 0.5f, c.y + r * std::sin (a) - sz * 0.5f, sz, sz);
     }
     // MIX shows its percentage, OUTPUT its dB
@@ -62,34 +71,34 @@ void SLLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h, f
     if (kind == 2) readout = (s.getValue() > 0.05 ? "+" : "") + String (s.getValue(), 1);
     if (readout.isNotEmpty())
     {
-        g.setColour (slui::ink); g.setFont (slui::mono (15.0f, true));
+        g.setColour (chui::ink); g.setFont (chui::mono (15.0f, true));
         g.drawText (readout, Rectangle<float> (c.x - 30.0f, c.y - 10.0f, 60.0f, 20.0f), Justification::centred);
     }
-    g.setColour (slui::ink);
-    g.setFont (slui::mono (12.0f));
+    g.setColour (chui::ink);
+    g.setFont (chui::mono (12.0f));
     g.drawText (s.getProperties()["label"].toString(), labelArea, Justification::centred);
 }
 
-void SLLookAndFeel::drawButtonBackground (Graphics& g, Button& b, const Colour&, bool over, bool)
+void CHLookAndFeel::drawButtonBackground (Graphics& g, Button& b, const Colour&, bool over, bool)
 {
     auto r = b.getLocalBounds().toFloat().reduced (0.5f);
-    if (b.getToggleState()) { g.setColour (slui::ink); g.fillRect (r); }
+    if (b.getToggleState()) { g.setColour (chui::ink); g.fillRect (r); }
     else
     {
-        if (over) { g.setColour (slui::ink.withAlpha (0.12f)); g.fillRect (r); }
-        g.setColour (slui::ink.withAlpha (0.85f)); g.drawRect (r, 1.0f);
+        if (over) { g.setColour (chui::ink.withAlpha (0.12f)); g.fillRect (r); }
+        g.setColour (chui::ink.withAlpha (0.85f)); g.drawRect (r, 1.0f);
     }
 }
 
-void SLLookAndFeel::drawButtonText (Graphics& g, TextButton& b, bool, bool)
+void CHLookAndFeel::drawButtonText (Graphics& g, TextButton& b, bool, bool)
 {
-    g.setColour (b.getToggleState() ? slui::ground : slui::ink);
-    g.setFont (slui::mono ((float) b.getProperties().getWithDefault ("fontSize", 12.0), true));
+    g.setColour (b.getToggleState() ? chui::ground : chui::ink);
+    g.setFont (chui::mono ((float) b.getProperties().getWithDefault ("fontSize", 12.0), true));
     g.drawFittedText (b.getButtonText(), b.getLocalBounds().reduced (3, 0), Justification::centred, 1);
 }
 
 //==============================================================================
-SledgeEditor::SledgeEditor (SledgeProcessor& p) : AudioProcessorEditor (&p), proc (p)
+ChariphEditor::ChariphEditor (ChariphProcessor& p) : AudioProcessorEditor (&p), proc (p)
 {
     setLookAndFeel (&lnf);
     setupKnob (drive, IDs::drive, "", 0);
@@ -101,9 +110,9 @@ SledgeEditor::SledgeEditor (SledgeProcessor& p) : AudioProcessorEditor (&p), pro
     setupToggle (onBtn, IDs::on, "ON");
     for (auto* t : { &autoBtn, &onBtn }) t->button.getProperties().set ("fontSize", 12.0);
 
-    for (int i = 0; i < sledge::kNumStyles; ++i)
+    for (int i = 0; i < chariph::kNumStyles; ++i)
     {
-        auto* b = styleBtns.add (new TextButton (sledge::kStyles[i].name));
+        auto* b = styleBtns.add (new TextButton (chariph::kStyles[i].name));
         b->getProperties().set ("fontSize", 12.0);
         b->onClick = [this, i] { styleAtt->setValueAsCompleteGesture ((float) i); };
         addAndMakeVisible (b);
@@ -119,9 +128,9 @@ SledgeEditor::SledgeEditor (SledgeProcessor& p) : AudioProcessorEditor (&p), pro
     startTimerHz (30);
 }
 
-SledgeEditor::~SledgeEditor() { setLookAndFeel (nullptr); }
+ChariphEditor::~ChariphEditor() { setLookAndFeel (nullptr); }
 
-void SledgeEditor::setupKnob (Knob& k, const char* id, const String& label, int kind)
+void ChariphEditor::setupKnob (Knob& k, const char* id, const String& label, int kind)
 {
     k.slider.setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     k.slider.setTextBoxStyle (Slider::NoTextBox, false, 0, 0);
@@ -135,13 +144,13 @@ void SledgeEditor::setupKnob (Knob& k, const char* id, const String& label, int 
     addAndMakeVisible (k.slider);
 }
 
-void SledgeEditor::setupToggle (Toggle& t, const char* id, const String& text)
+void ChariphEditor::setupToggle (Toggle& t, const char* id, const String& text)
 {
     t.button.setButtonText (text); t.button.setClickingTogglesState (true);
     t.att = std::make_unique<ButtonAtt> (proc.apvts, id, t.button); addAndMakeVisible (t.button);
 }
 
-void SledgeEditor::timerCallback()
+void ChariphEditor::timerCallback()
 {
     auto level = [] (float peak, float prev) { return jmax (peak, prev * 0.88f); };
     meterIn = level (proc.engine.peakIn.load(), meterIn);
@@ -153,10 +162,10 @@ void SledgeEditor::timerCallback()
 static constexpr int kGridX = 540, kCols = 5, kBtnW = 76, kBtnH = 38, kGap = 6;
 static constexpr int kStdY = 168, kWeirdY = 400;
 
-void SledgeEditor::resized()
+void ChariphEditor::resized()
 {
     drive.slider.setBounds (290 - 170, 362 - 170, 340, 340);
-    for (int i = 0; i < sledge::kNumStyles; ++i)
+    for (int i = 0; i < chariph::kNumStyles; ++i)
     {
         const int group = i / 20, k = i % 20, row = k / kCols, col = k % kCols;
         styleBtns[i]->setBounds (kGridX + col * (kBtnW + kGap), (group == 0 ? kStdY : kWeirdY) + row * (kBtnH + kGap), kBtnW, kBtnH);
@@ -167,41 +176,42 @@ void SledgeEditor::resized()
     onBtn.button.setBounds (896, 646, 56, 40);
 }
 
-static const char* kFont[6][7] = {
-    { "01111", "10000", "10000", "01110", "00001", "00001", "11110" },   // S
-    { "10000", "10000", "10000", "10000", "10000", "10000", "11111" },   // L
-    { "11111", "10000", "10000", "11110", "10000", "10000", "11111" },   // E
-    { "11110", "10001", "10001", "10001", "10001", "10001", "11110" },   // D
-    { "01110", "10001", "10000", "10111", "10001", "10001", "01111" },   // G
-    { "11111", "10000", "10000", "11110", "10000", "10000", "11111" } };   // E
+static const char* kFont[7][7] = {
+    { "01111", "10000", "10000", "10000", "10000", "10000", "01111" },   // C
+    { "10001", "10001", "10001", "11111", "10001", "10001", "10001" },   // H
+    { "01110", "10001", "10001", "11111", "10001", "10001", "10001" },   // A
+    { "11110", "10001", "10001", "11110", "10100", "10010", "10001" },   // R
+    { "11111", "00100", "00100", "00100", "00100", "00100", "11111" },   // I
+    { "11110", "10001", "10001", "11110", "10000", "10000", "10000" },   // P
+    { "10001", "10001", "10001", "11111", "10001", "10001", "10001" } }; // H
 
-void SledgeEditor::paint (Graphics& g)
+void ChariphEditor::paint (Graphics& g)
 {
-    g.fillAll (slui::ground);
-    g.setColour (slui::ink.withAlpha (0.5f));
+    g.fillAll (chui::ground);
+    g.setColour (chui::ink.withAlpha (0.5f));
     for (int y : { 124, 600 }) g.fillRect (0, y, getWidth(), 1);
     for (int x : { 72, 968 }) g.fillRect (x, 0, 1, getHeight());
 
-    g.setColour (slui::ink);
-    for (int li = 0; li < 6; ++li)
+    g.setColour (chui::ink);
+    for (int li = 0; li < 7; ++li)
         for (int ry = 0; ry < 7; ++ry)
             for (int rx = 0; rx < 5; ++rx)
                 if (kFont[li][ry][rx] == '1') g.fillRect (96 + li * 56 + rx * 8, 34 + ry * 8, 7, 7);
 
     struct Speck { int x, y; bool dark; };
     for (auto s : { Speck { 40, 60, true }, { 190, 110, false }, { 1000, 170, true }, { 30, 380, false }, { 1000, 560, true }, { 330, 612, true }, { 44, 700, false }, { 520, 140, false } })
-    { g.setColour (s.dark ? slui::ink : slui::pale); g.fillRect (s.x, s.y, 4, 4); }
+    { g.setColour (s.dark ? chui::ink : chui::pale); g.fillRect (s.x, s.y, 4, 4); }
 
     // the two families
-    g.setColour (slui::ink); g.setFont (slui::mono (12.0f, true));
+    g.setColour (chui::ink); g.setFont (chui::mono (12.0f, true));
     g.drawText ("STANDARD", kGridX, kStdY - 28, 200, 18, Justification::centredLeft);
     g.drawText ("WEIRD", kGridX, kWeirdY - 28, 200, 18, Justification::centredLeft);
-    g.setColour (slui::ink.withAlpha (0.45f));
+    g.setColour (chui::ink.withAlpha (0.45f));
     g.fillRect (kGridX, kStdY - 8, kCols * (kBtnW + kGap) - kGap, 1);
     g.fillRect (kGridX, kWeirdY - 8, kCols * (kBtnW + kGap) - kGap, 1);
 
     // IN / OUT meters
-    g.setColour (slui::ink); g.setFont (slui::mono (11.0f));
+    g.setColour (chui::ink); g.setFont (chui::mono (11.0f));
     g.drawText ("IN", 96, 622, 30, 16, Justification::centredLeft);
     g.drawText ("OUT", 96, 652, 30, 16, Justification::centredLeft);
     auto seg = [&] (int y, float peak)
@@ -210,7 +220,7 @@ void SledgeEditor::paint (Graphics& g)
         for (int i = 0; i < 24; ++i)
         {
             const bool lit = db > -48.0f + 2.0f * (float) i;
-            g.setColour (slui::ink.withAlpha (lit ? 1.0f : 0.3f));
+            g.setColour (chui::ink.withAlpha (lit ? 1.0f : 0.3f));
             g.fillRect (128 + i * 14, y, 10, 10);
         }
     };

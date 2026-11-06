@@ -1,14 +1,14 @@
-# SLEDGE
+# CHARIPH
 
 A distortion box in the Decapitator family: one big DRIVE knob, a MIX, an OUTPUT, AUTO GAIN, and 40 styles on buttons.
 Twenty of them are "standard" (made to sit on vocals and electric guitars), twenty are stranger (motion, filters, folding).
 
-The word in the middle of the knob changes with the drive: HIT, SMASH, CRASH.
+The word in the middle of the knob changes with the drive: SPICY, HOT, GIVE HIM SOME MILK.
 
 ## Controls
 
 - **Style buttons**: one button per style, 20 standard and 20 weird.
-- **DRIVE (big knob)**: how hard the signal hits the distortion. It changes the *sound*: the amount of harmonics, the compression, which filters open or close. Double-click returns it to HIT.
+- **DRIVE (big knob)**: how hard the signal hits the distortion. It changes the *sound*: the amount of harmonics, the compression, which filters open or close. Double-click returns it to SPICY.
 - **MIX**: how much of the distorted signal is blended with the clean one (in percent). It only changes the balance, not the character. Everything is delay-compensated, so 0% is exactly your dry signal.
 - **OUTPUT**: output level, plus or minus 18 dB.
 - **AUTO GAIN** (on by default): keeps the distorted signal at the loudness of what went in, so turning DRIVE up does not make it louder and you judge the sound, not the volume. Turn it off to hear the raw level.
@@ -16,7 +16,7 @@ The word in the middle of the knob changes with the drive: HIT, SMASH, CRASH.
 
 ## How it works
 
-- Every style is a short chain of blocks (filters, bending curves, modulation effects). The blocks that bend the wave run at **4x oversampling** (two linear-phase halfband stages), which keeps the aliasing of the standard styles under about -100 dB. Latency is 49 samples and is reported to the host.
+- Every style is a short chain of blocks (filters, bending curves, modulation effects). The blocks that bend the wave run at **4x oversampling** (two linear-phase halfband stages), which keeps the aliasing of the standard styles under about -70 dB (about -100 dB for most). Latency is 39 samples and is reported to the host.
 - Sources of the curves: tape (soft tanh with head bump and highs that fold away), transformer (only the lows saturate), triode (asymmetric, even harmonics), pentode (sharp knee, odd harmonics), tube-screamer-style overdrive (clean lows, mid hump), germanium fuzz (asymmetric with gating), wall-of-fuzz (two clips, scooped mids), and the weird ones: sine and triangle wave folders, rectifier, crossover (dead zone), slew limiter, bit and sample-rate crusher, ring modulator, and a starved supply that drifts its own bias.
 - **Wobble, flanger, phaser, siren, talkbox and tremolo run in time with the song**: the speed is set in beats and follows the host tempo and position. Without a host tempo they run at 120 BPM.
 - Changing style crossfades between the old and the new one over 25 ms, so it does not click.

@@ -2,11 +2,11 @@
 #include "../../Source/PluginEditor.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 using namespace juce;
-// usage: slsnap out.png drive(0..1) [styleIdx]
+// usage: chsnap out.png drive(0..1) [styleIdx]
 int main (int argc, char** argv)
 {
     ScopedJuceInitialiser_GUI init;
-    SledgeProcessor proc;
+    ChariphProcessor proc;
     proc.setParam (IDs::drive, argc > 2 ? (float) atof (argv[2]) : 0.35f);
     if (argc > 3) proc.setParam (IDs::style, (float) atoi (argv[3]));
     proc.prepareToPlay (48000, 512);

@@ -1,13 +1,13 @@
-// Measures SLEDGE without JUCE: oversampler, harmonics and aliasing per style, auto gain, silence, style switching, speed.
+// Measures CHARIPH without JUCE: oversampler, harmonics and aliasing per style, auto gain, silence, style switching, speed.
 // build: g++ -O2 -std=c++17 measure.cpp -o measure && ./measure
-#include "../Source/SledgeDSP.h"
+#include "../Source/ChariphDSP.h"
 #include <complex>
 #include <cstdio>
 #include <random>
 #include <chrono>
 #include <string>
 
-using namespace sledge;
+using namespace chariph;
 typedef std::complex<double> cd;
 
 static void fft (std::vector<cd>& a)
@@ -44,16 +44,14 @@ int main (int argc, char** argv)
 
     // ---------------------------------------------------------------- 1. oversampler: delay and passband
     {
-        const auto& d = osDesign(); Up2 u1, u2a, u2b; Down2 d1, d2a, d2b;
-        u1.hb = &d.s1; u2a.hb = u2b.hb = &d.s2; d1.hb = &d.s1; d2a.hb = d2b.hb = &d.s2;
+        const auto& d = osDesign(); Up2 u1; Down2 d1; u1.hb = &d.s1; d1.hb = &d.s1;
         auto passThrough = [&] (double f, std::vector<double>& out, std::vector<double>& in, size_t N)
         {
             out.assign (N, 0); in.assign (N, 0);
             for (size_t i = 0; i < N; ++i)
             {
                 const double x = 0.5 * std::sin (2 * kPi * f * (double) i / fs); in[i] = x;
-                double a0, a1, o[4]; u1.process (x, a0, a1); u2a.process (a0, o[0], o[1]); u2b.process (a1, o[2], o[3]);
-                const double b0 = d2a.process (o[0], o[1]), b1 = d2b.process (o[2], o[3]); out[i] = d1.process (b0, b1);
+                double a0, a1; u1.process (x, a0, a1); out[i] = d1.process (a0, a1);
             }
         };
         std::printf ("oversampler (design latency %.2f samples)\n", d.latency());
