@@ -5,10 +5,10 @@
 
 namespace chui
 {
-    inline const juce::Colour ground { 0xff5cb82e };   // jalapeno green
-    inline const juce::Colour ink    { 0xff0c2a0a };   // deep pepper-leaf
-    inline const juce::Colour pale   { 0xffe6ffcc };   // little pale specks
-    inline const juce::Colour hot    { 0xffe8281c };   // chili red, lit when it burns
+    inline const juce::Colour ground { 0xff086e75 };   // petrol teal
+    inline const juce::Colour ink    { 0xffeafff6 };   // pale mint
+    inline const juce::Colour pale   { 0xff9fe6d6 };   // little pale specks
+    inline const juce::Colour hot    { 0xffff5a36 };   // chili, lit when it burns
     juce::Font mono (float size, bool bold = false);
 }
 
