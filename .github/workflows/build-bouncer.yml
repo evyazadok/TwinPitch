@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - "Bouncer/**"
-      - ".github/workflows/build-toaster.yml"
+      - ".github/workflows/build-bouncer.yml"
   workflow_dispatch:
 
 jobs:

@@ -14,6 +14,7 @@ on:
       - ".github/workflows/build-secretweapon.yml"
       - "Toaster/**"
       - "Bouncer/**"
+      - "Snitch/**"
       - ".github/workflows/build-toaster.yml"
   workflow_dispatch:
 
