@@ -91,7 +91,7 @@ RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
  *
  * in and out must be at least rnnoise_get_frame_size() large.
  */
-RNNOISE_EXPORT float rnnoise_process_frame_x(DenoiseState *st, float *out, const float *in, float exponent, float decay);
+RNNOISE_EXPORT float rnnoise_process_frame_x(DenoiseState *st, float *out, const float *in, float exponent, float decay, float protect, float hiFloor, float gateDb);
 
 RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
 

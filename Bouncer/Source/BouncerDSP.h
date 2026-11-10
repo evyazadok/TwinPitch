@@ -2,7 +2,7 @@
 // BOUNCER engine. Mono, 48 kHz in and out (the plugin resamples around it).
 //
 //   input -> RNNoise (neural net that tells voice from noise, band by band)
-//         -> pushed harder than normal (gain exponent, faster release, optional second pass)
+//         -> pushed harder than normal (gain exponent), but protected where the voice is, in the top bands, and at word ends
 //         -> late-reverb remover (spectral, tuned for untreated rooms)
 //         -> + a little of the gently cleaned signal if FLOOR is up (so it never sounds dead)
 //
@@ -21,7 +21,7 @@ namespace bouncer
 static constexpr double kPi = 3.14159265358979323846;
 static constexpr int kFrame = 480;                 // RNNoise frame, 10 ms at 48 kHz
 static constexpr int kN = 1024, kHop = 256;        // reverb remover STFT
-static constexpr int kLatency = 3 * kFrame + kN;   // samples at 48 kHz: our frame + two RNNoise passes (10 ms overlap each) + reverb remover
+static constexpr int kLatency = 2 * kFrame + kN;   // samples at 48 kHz: our frame + RNNoise's own overlap + reverb remover
 
 struct Params
 {
@@ -96,21 +96,27 @@ private:
         // the room's decay: 60 dB over T60 seconds. Longer reverb means the knob also assumes a longer tail.
         const double t60 = 0.35 + 0.5 * amount;
         const double d = std::pow (10.0, -6.0 * (double) kHop / (t60 * 48000.0));     // power decay per hop
-        const float alpha = (float) (1.0 + 0.6 * amount);                              // how much of the estimate is taken away
-        const float beta = (float) (0.4 * amount);                                      // how much of the earlier sound is assumed to be room
-        const float gmin = (float) std::pow (10.0, -(8.0 + 26.0 * amount) / 20.0);
+        const float alpha = (float) (1.0 + 0.3 * amount);                              // how much of the estimate is taken away
+        const float beta = (float) (0.28 * amount);                                      // how much of the earlier sound is assumed to be room
+        const float gmin = (float) std::pow (10.0, -(5.0 + 11.0 * amount) / 20.0);   // never a deep hole: that is what sounds hollow
         const auto& old = hist[(size_t) ((histPos + kHist - kD) % kHist)];
         auto& cur = hist[(size_t) histPos];
+        std::vector<float>& graw = gTmp; graw.resize ((size_t) bins);
         for (int k = 0; k < bins; ++k)
         {
             const float p = std::norm (a[k]) + 1.0e-9f;
             cur[(size_t) k] = p;
             late[(size_t) k] = (float) (d * late[(size_t) k] + (1.0 - d) * beta * old[(size_t) k]);
             float g = amount < 0.001 ? 1.0f : 1.0f - alpha * late[(size_t) k] / p;
-            g = std::sqrt (std::max (gmin * gmin, g));
-            // gain may fall quickly (the tail is over) but comes back more slowly so words are not chopped at the start
+            graw[(size_t) k] = std::sqrt (std::max (gmin * gmin, g));
+        }
+        for (int k = 0; k < bins; ++k)
+        {
+            // smooth across neighbouring bins (isolated holes in the spectrum sound hollow and watery)
+            float g = 0.25f * graw[(size_t) std::max (0, k - 1)] + 0.5f * graw[(size_t) k] + 0.25f * graw[(size_t) std::min (bins - 1, k + 1)];
+            // the gain may fall quickly (the tail is over) but comes back more slowly so words are not chopped at the start
             const float gp = gPrev[(size_t) k];
-            g = g < gp ? gp + (g - gp) * 0.85f : gp + (g - gp) * 0.6f;
+            g = g < gp ? gp + (g - gp) * 0.7f : gp + (g - gp) * 0.6f;
             gPrev[(size_t) k] = g;
             a[k] *= g;
             if (k > 0 && k < kN / 2) a[kN - k] = std::conj (a[k]);
@@ -126,23 +132,41 @@ private:
     static constexpr int kHist = 32;
     FFT fft; std::vector<float> win;
     std::array<float, kN> inBuf {}, ola {}; std::array<float, kQ> outQ {};
-    std::array<std::vector<float>, kHist> hist; std::vector<float> late, gPrev;
+    std::array<std::vector<float>, kHist> hist; std::vector<float> late, gPrev, gTmp;
     int histPos = 0, count = 0, qr = 0, qw = 0, qCount = 0, inPos = 0;
+};
+
+// puts back a little of the top end that the net takes along with the noise (RBJ high shelf)
+class Air
+{
+public:
+    void set (double gainDb)
+    {
+        const double A = std::pow (10.0, gainDb / 40.0), w0 = 2.0 * kPi * 8000.0 / 48000.0, c = std::cos (w0), sn = std::sin (w0), alpha = sn / 2.0 * std::sqrt (2.0);
+        const double sA = 2.0 * std::sqrt (A) * alpha;
+        const double a0 = (A + 1) - (A - 1) * c + sA;
+        b0 = A * ((A + 1) + (A - 1) * c + sA) / a0; b1 = -2.0 * A * ((A - 1) + (A + 1) * c) / a0; b2 = A * ((A + 1) + (A - 1) * c - sA) / a0;
+        a1 = 2.0 * ((A - 1) - (A + 1) * c) / a0; a2 = ((A + 1) - (A - 1) * c - sA) / a0;
+    }
+    void reset() { z1 = z2 = 0; }
+    float process (float x) { const double y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; return (float) y; }
+private:
+    double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
 };
 
 class Engine
 {
 public:
-    Engine() { hardA = rnnoise_create (nullptr); hardB = rnnoise_create (nullptr); light = rnnoise_create (nullptr); reset(); }
-    ~Engine() { rnnoise_destroy (hardA); rnnoise_destroy (hardB); rnnoise_destroy (light); }
+    Engine() { hardA = rnnoise_create (nullptr); light = rnnoise_create (nullptr); reset(); }
+    ~Engine() { rnnoise_destroy (hardA); rnnoise_destroy (light); }
     Engine (const Engine&) = delete; Engine& operator= (const Engine&) = delete;
 
     static int latencySamples() { return kLatency; }
     void reset()
     {
-        rnnoise_init (hardA, nullptr); rnnoise_init (hardB, nullptr); rnnoise_init (light, nullptr);
-        derev.reset(); fill = 0; outHave = 0; outPos = 0;
-        std::fill (dryD.begin(), dryD.end(), 0.0f); std::fill (lightD.begin(), lightD.end(), 0.0f); std::fill (hPrev.begin(), hPrev.end(), 0.0f); dPos = 0; lPos = 0;
+        rnnoise_init (hardA, nullptr); rnnoise_init (light, nullptr);
+        derev.reset(); air.reset(); fill = 0; outHave = 0; outPos = 0;
+        std::fill (dryD.begin(), dryD.end(), 0.0f); std::fill (lightD.begin(), lightD.end(), 0.0f); dPos = 0; lPos = 0;
         std::fill (outBuf.begin(), outBuf.end(), 0.0f); std::fill (inBuf.begin(), inBuf.end(), 0.0f);
         vad = 0;
     }
@@ -164,24 +188,20 @@ private:
     void frameNow()
     {
         const double b = std::clamp (P.bounce, 0.0, 1.0);
-        float s[kFrame], h[kFrame], t[kFrame], l[kFrame];
+        float s[kFrame], h[kFrame], l[kFrame];
         for (int i = 0; i < kFrame; ++i) s[i] = inBuf[(size_t) i] * 32768.0f;
 
-        // --- BOUNCE: 0..1 mapped hard to the right. The upper half is far beyond a normal clean-up.
-        const float e1 = (float) (1.0 + 3.2 * std::pow (b, 1.35));
-        const float dec = (float) (0.6 - 0.28 * std::pow (b, 1.2));
-        vad = rnnoise_process_frame_x (hardA, h, s, e1, dec);
-        const double second = std::clamp ((b - 0.5) / 0.25, 0.0, 1.0);                     // second pass fades in from 50 %
-        {
-            // the second RNNoise pass delays by one more frame; the first pass result is always held back one frame
-            // so the two can be crossfaded without drifting apart
-            const float e2 = (float) (1.0 + 2.0 * std::clamp ((b - 0.5) / 0.5, 0.0, 1.0));
-            rnnoise_process_frame_x (hardB, t, h, e2, dec);
-            for (int i = 0; i < kFrame; ++i) { const float held = hPrev[(size_t) i]; hPrev[(size_t) i] = h[i]; h[i] = held + (float) second * (t[i] - held); }
-        }
+        // --- BOUNCE: 0..1, lopsided on purpose: the upper part goes well past a normal clean-up.
+        // What is kept safe at every setting: the voice (protect), the top bands (air, s and t sounds), word ends (slow release).
+        const float e1 = (float) (1.0 + 1.3 * std::pow (b, 1.2));
+        const float dec = (float) (0.62 + 0.24 * b);                                         // closer to 1 = holds longer
+        const float hiFloor = (float) (0.65 - 0.3 * b);
+        const float gateDb = (float) (34.0 * std::pow (b, 1.3));                             // builds up only after the voice has been gone for a while
+        vad = rnnoise_process_frame_x (hardA, h, s, e1, dec, 0.92f, hiFloor, gateDb);
         const bool wantFloor = P.floorDb > -60.0;
-        if (wantFloor) rnnoise_process_frame_x (light, l, s, 1.0f, 0.6f);
+        if (wantFloor) rnnoise_process_frame_x (light, l, s, 1.0f, 0.7f, 0.0f, 0.8f, 0.0f);
 
+        air.set (1.5 + 2.5 * b);
         const double room = std::clamp (P.room, 0.0, 1.0);
         const float fl = wantFloor ? (float) std::pow (10.0, P.floorDb / 20.0) : 0.0f;
         for (int i = 0; i < kFrame; ++i)
@@ -195,18 +215,19 @@ private:
             const float lightLate = lightD[(size_t) lPos]; lightD[(size_t) lPos] = lightNow; lPos = (lPos + 1) % kLightDelay;
             const float dryLate = dryD[(size_t) dPos];   dryD[(size_t) dPos] = dryNow;
             dPos = (dPos + 1) % kDelay;
+            hard = air.process (hard);
             float y = hard + fl * lightLate;
             if (P.listenRemoved) y = dryLate - y;
             outBuf[(size_t) i] = P.on ? y : dryLate;
         }
     }
     // the dry path sees: RNNoise frame (kFrame, already inherent: inBuf delays it by one frame) plus the reverb remover (kN)
-    static constexpr int kDelay = 2 * kFrame + kN;   // dry path: two RNNoise overlaps + reverb remover (the frame buffering is shared by all paths)
-    static constexpr int kLightDelay = kFrame + kN;  // gently cleaned path: one RNNoise overlap + reverb remover
-    DenoiseState *hardA = nullptr, *hardB = nullptr, *light = nullptr;
-    Params P; Dereverb derev;
+    static constexpr int kDelay = kFrame + kN;       // dry path: RNNoise overlap + reverb remover (the frame buffering is shared by all paths)
+    static constexpr int kLightDelay = kN;           // gently cleaned path: only the reverb remover is missing
+    DenoiseState *hardA = nullptr, *light = nullptr;
+    Params P; Dereverb derev; Air air;
     std::array<float, kFrame> inBuf {}, outBuf {};
-    std::array<float, kDelay> dryD {}; std::array<float, kLightDelay> lightD {}; std::array<float, kFrame> hPrev {};
+    std::array<float, kDelay> dryD {}; std::array<float, kLightDelay> lightD {};
     int fill = 0, outHave = 0, outPos = 0, dPos = 0, lPos = 0; float vad = 0;
 };
 }

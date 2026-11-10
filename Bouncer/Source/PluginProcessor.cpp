@@ -20,8 +20,8 @@ AudioProcessorValueTreeState::ParameterLayout BouncerProcessor::createLayout()
                         AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return String (juce::roundToInt (v * 100.0f)) + "%"; })));
     };
     addFloat (IDs::bounce, "Bounce", 0.55f);
-    addFloat (IDs::room, "Room", 0.4f);
-    addFloat (IDs::floorLevel, "Floor", 0.0f);
+    addFloat (IDs::room, "Room", 0.25f);
+    addFloat (IDs::floorLevel, "Floor", 0.3f);
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { IDs::on, 1 }, "On", true));
     p.push_back (std::make_unique<AudioParameterBool> (ParameterID { IDs::trash, 1 }, "Trash", false));
     return { p.begin(), p.end() };

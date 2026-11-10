@@ -97,6 +97,7 @@ struct DenoiseState {
   int last_period;
   float mem_hp_x[2];
   float lastg[NB_BANDS];
+  float vad_smooth;
   RNNState rnn;
 };
 
@@ -458,9 +459,14 @@ static void pitch_filter(kiss_fft_cpx *X, const kiss_fft_cpx *P, const float *Ex
   }
 }
 
-/* BOUNCER extension: same as rnnoise_process_frame, but the band gains are pushed harder.
-   exponent > 1 makes every gain smaller (g^exponent), decay < 0.6 lets the gain fall faster after a word ends. */
-float rnnoise_process_frame_x(DenoiseState *st, float *out, const float *in, float exponent, float decay) {
+/* BOUNCER extension. Compared with rnnoise_process_frame:
+   - no pitch comb filter (it makes sung and rapped voices sound watery)
+   - gains are smoothed across bands, and fall slowly (decay close to 1 = long hold) so word ends and breaths survive
+   - exponent > 1 pushes the gains down (g^exponent), but less where the voice is (protect 0..1) and
+     less in the top bands, so s/t sounds and air stay
+   - the top bands (above 8 kHz) never go below hiFloor
+   - gateDb: extra attenuation that only builds up once the voice has been gone for a while */
+float rnnoise_process_frame_x(DenoiseState *st, float *out, const float *in, float exponent, float decay, float protect, float hiFloor, float gateDb) {
   int i;
   kiss_fft_cpx X[FREQ_SIZE];
   kiss_fft_cpx P[WINDOW_SIZE];
@@ -468,7 +474,7 @@ float rnnoise_process_frame_x(DenoiseState *st, float *out, const float *in, flo
   float Ex[NB_BANDS], Ep[NB_BANDS];
   float Exp[NB_BANDS];
   float features[NB_FEATURES];
-  float g[NB_BANDS];
+  float g[NB_BANDS], gs[NB_BANDS];
   float gf[FREQ_SIZE]={1};
   float vad_prob = 0;
   int silence;
@@ -478,17 +484,31 @@ float rnnoise_process_frame_x(DenoiseState *st, float *out, const float *in, flo
   silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
   if (!silence) {
     compute_rnn(&st->rnn, g, &vad_prob, features);
-    pitch_filter(X, P, Ex, Ep, Exp, g);
+    /* the voice-activity estimate falls slowly, so the end of a word still counts as voice */
+    st->vad_smooth = vad_prob > st->vad_smooth ? vad_prob : st->vad_smooth*0.955f + vad_prob*0.045f;
     for (i=0;i<NB_BANDS;i++) {
-      g[i] = MAX16(g[i], decay*st->lastg[i]);
-      st->lastg[i] = g[i];
-      g[i] = (exponent == 1.f) ? g[i] : powf(g[i], exponent);
+      float lo = i>0 ? g[i-1] : g[i], hi = i<NB_BANDS-1 ? g[i+1] : g[i];
+      gs[i] = 0.25f*lo + 0.5f*g[i] + 0.25f*hi;
+    }
+    {
+      /* after the voice has been gone for a while (about a quarter of a second) everything is pulled down by up to gateDb */
+      float open = st->vad_smooth*3.f; if (open > 1.f) open = 1.f;
+      float gate = gateDb > 0.f ? powf(10.f, -gateDb*(1.f-open)/20.f) : 1.f;
+      float e = 1.f + (exponent-1.f)*(1.f - protect*st->vad_smooth);
+      for (i=0;i<NB_BANDS;i++) {
+        float w = i < 12 ? 1.f : (i < 17 ? 1.f - 0.12f*(i-11) : 0.25f);     /* less push towards the top */
+        float gi = gs[i] > decay*st->lastg[i] ? gs[i] : decay*st->lastg[i];
+        st->lastg[i] = gi;
+        if (e != 1.f) gi = powf(gi, 1.f + (e-1.f)*w);
+        if (i >= 17 && gi < hiFloor) gi = hiFloor;
+        g[i] = gi*gate;
+      }
     }
     interp_band_gain(gf, g);
     for (i=0;i<FREQ_SIZE;i++) { X[i].r *= gf[i]; X[i].i *= gf[i]; }
   }
   frame_synthesis(st, out, X);
-  return vad_prob;
+  return st->vad_smooth;
 }
 
 float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
